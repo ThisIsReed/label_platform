@@ -40,8 +40,17 @@ const AnnotationPage: React.FC = () => {
       const [docResponse, annotationResponse] = await Promise.all([docPromise, annotationPromise]);
 
       setDocument(docResponse.data);
-      if (annotationResponse.data) {
-        setAnnotation(annotationResponse.data);
+      if (annotationResponse.data && annotationResponse.data.evaluation !== null) {
+        // 转换后端数据格式为前端格式
+        const backendData = annotationResponse.data;
+        const frontendData: AnnotationData = {
+          evaluation: backendData.evaluation !== null ? (backendData.evaluation ? 'good' : 'bad') : undefined,
+          comments: backendData.comments.map((comment: any) => ({
+            selected_text: comment.selection || comment.text,
+            comment: comment.text
+          }))
+        };
+        setAnnotation(frontendData);
       }
     } catch (error) {
       // 404 error for annotation is fine, means it's new
@@ -90,14 +99,27 @@ const AnnotationPage: React.FC = () => {
 
   const postAnnotation = async (isCompleted: boolean) => {
     try {
+      // 转换数据格式以匹配后端API期望
       const payload = {
-        ...annotation,
+        evaluation: annotation.evaluation ? annotation.evaluation === 'good' : false, // 没有评价时默认为false
+        comments: annotation.comments.map(comment => ({
+          text: comment.comment,
+          selection: comment.selected_text
+        })),
+        time_spent: 0, // 默认值，可以根据需要添加时间追踪
         is_completed: isCompleted,
       };
+      console.log('Sending payload:', payload); // 调试日志
       await api.post(`/annotations/${id}`, payload);
       message.success(`标注已成功${isCompleted ? '提交' : '保存'}!`);
     } catch (error) {
       console.error('Failed to post annotation:', error);
+      if ((error as any).response?.status === 422) {
+        console.error('422 Error Details:', (error as any).response?.data);
+        message.error('数据格式错误，请检查输入内容');
+      } else {
+        message.error('保存失败，请稍后重试');
+      }
     }
   };
 
