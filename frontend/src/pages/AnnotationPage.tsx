@@ -1,7 +1,7 @@
-import { DislikeOutlined, LikeOutlined, MessageOutlined, SendOutlined } from '@ant-design/icons';
-import { Button, Card, Col, message, Row, Tooltip, Typography, Space, Divider, Affix, Popover, Input, Spin, List, Tag } from 'antd';
+import { DislikeOutlined, LikeOutlined, MessageOutlined, SendOutlined, SaveOutlined, CheckOutlined } from '@ant-design/icons';
+import { Button, Card, Col, message, Row, Tooltip, Typography, Space, Divider, Affix, Popover, Input, Spin, List, Tag, Modal, Progress } from 'antd';
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import styles from './AnnotationPage.module.css';
 
@@ -26,11 +26,16 @@ interface AnnotationData {
 
 const AnnotationPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [annotation, setAnnotation] = useState<AnnotationData>({ comments: [] });
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   
   const fetchDocumentAndAnnotation = useCallback(async () => {
     setLoading(true);
@@ -98,30 +103,118 @@ const AnnotationPage: React.FC = () => {
   };
 
   const postAnnotation = async (isCompleted: boolean) => {
+    // 设置对应的加载状态
+    if (isCompleted) {
+      setSubmitting(true);
+    } else {
+      setSaving(true);
+    }
+
     try {
+      // 显示保存进度
+      const loadingMessage = isCompleted
+        ? message.loading('正在提交标注...', 0)
+        : message.loading('正在保存标注...', 0);
+
       // 转换数据格式以匹配后端API期望
       const payload = {
-        evaluation: annotation.evaluation ? annotation.evaluation === 'good' : false, // 没有评价时默认为false
+        evaluation: annotation.evaluation ? annotation.evaluation === 'good' : false,
         comments: annotation.comments.map(comment => ({
           text: comment.comment,
           selection: comment.selected_text
         })),
-        time_spent: 0, // 默认值，可以根据需要添加时间追踪
+        time_spent: 0,
         is_completed: isCompleted,
       };
-      console.log('Sending payload:', payload); // 调试日志
+
+      console.log('Sending payload:', payload);
       await api.post(`/annotations/${id}`, payload);
-      message.success(`标注已成功${isCompleted ? '提交' : '保存'}!`);
+
+      // 关闭加载消息
+      loadingMessage();
+
+      // 更新最后保存时间
+      setLastSaveTime(new Date());
+
+      if (isCompleted) {
+        // 显示成功模态框
+        setShowSuccessModal(true);
+        message.success('🎉 标注已成功提交！感谢您的参与！');
+      } else {
+        message.success('✅ 标注已成功保存！');
+      }
+
     } catch (error) {
       console.error('Failed to post annotation:', error);
+
       if ((error as any).response?.status === 422) {
         console.error('422 Error Details:', (error as any).response?.data);
-        message.error('数据格式错误，请检查输入内容');
+        message.error('❌ 数据格式错误，请检查输入内容');
+      } else if ((error as any).response?.status === 401) {
+        message.error('❌ 身份验证失败，请重新登录');
+      } else if ((error as any).response?.status >= 500) {
+        message.error('❌ 服务器错误，请稍后重试');
       } else {
-        message.error('保存失败，请稍后重试');
+        message.error('❌ 保存失败，请检查网络连接');
       }
+    } finally {
+      // 无论成功失败都要重置加载状态
+      setSaving(false);
+      setSubmitting(false);
     }
   };
+
+  // 处理成功模态框的关闭和跳转
+  const handleSuccessModalOk = () => {
+    setShowSuccessModal(false);
+    navigate('/documents');
+  };
+
+  const handleSuccessModalCancel = () => {
+    setShowSuccessModal(false);
+  };
+
+  const handleContinueAnnotating = () => {
+    setShowSuccessModal(false);
+    // 可以跳转到下一个待标注的文档
+    navigate('/documents');
+  };
+
+  // 成功提交模态框
+  const SuccessModal = () => (
+    <Modal
+      title={
+        <div style={{ textAlign: 'center' }}>
+          <CheckOutlined style={{ color: '#52c41a', fontSize: '24px', marginRight: '8px' }} />
+          标注提交成功！
+        </div>
+      }
+      open={showSuccessModal}
+      onOk={handleSuccessModalOk}
+      onCancel={handleSuccessModalCancel}
+      footer={[
+        <Button key="continue" type="primary" onClick={handleContinueAnnotating}>
+          继续标注其他文档
+        </Button>,
+        <Button key="back" onClick={handleSuccessModalOk}>
+          返回文档列表
+        </Button>,
+      ]}
+      centered
+      width={400}
+    >
+      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+        <div style={{ fontSize: '16px', marginBottom: '16px' }}>
+          🎉 感谢您的参与！您的标注对AI内容改进非常重要。
+        </div>
+        <div style={{ color: '#666', fontSize: '14px' }}>
+          <p>本次标注统计：</p>
+          <p>• 评价：{annotation.evaluation === 'good' ? '内容很好 👍' : annotation.evaluation === 'bad' ? '有待改进 📝' : '未评价'}</p>
+          <p>• 评论数：{annotation.comments.length} 条</p>
+        </div>
+      </div>
+    </Modal>
+  );
 
   const commentPopoverContent = (
     <div style={{ width: 300 }}>
@@ -159,7 +252,6 @@ const AnnotationPage: React.FC = () => {
     );
   }
 
-  
   if (!document || !document.source_content || !document.generated_content) {
     return (
       <div style={{ textAlign: 'center', marginTop: '100px' }}>
@@ -170,24 +262,25 @@ const AnnotationPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '0 16px' }}>
-      <Title level={3}>{document.title || '无标题文档'}</Title>
-      <Row gutter={16}>
-        <Col span={11}>
-          <Card title="原始素材">
-            <Paragraph className={styles.contentBox} onMouseUp={handleSelection}>
-              {document.source_content}
-            </Paragraph>
-          </Card>
-        </Col>
-        <Col span={11}>
-          <Card title="AI 生成内容">
-            <Paragraph className={styles.contentBox} onMouseUp={handleSelection}>
-              {document.generated_content}
-            </Paragraph>
-          </Card>
-        </Col>
-         <Col span={2}>
+    <>
+      <div style={{ padding: '0 16px' }}>
+        <Title level={3}>{document.title || '无标题文档'}</Title>
+        <Row gutter={16}>
+          <Col span={11}>
+            <Card title="原始素材">
+              <Paragraph className={styles.contentBox} onMouseUp={handleSelection}>
+                {document.source_content}
+              </Paragraph>
+            </Card>
+          </Col>
+          <Col span={11}>
+            <Card title="AI 生成内容">
+              <Paragraph className={styles.contentBox} onMouseUp={handleSelection}>
+                {document.generated_content}
+              </Paragraph>
+            </Card>
+          </Col>
+           <Col span={2}>
             <Card title="评论列表" size="small">
                 <List
                   dataSource={annotation.comments || []}
@@ -207,48 +300,77 @@ const AnnotationPage: React.FC = () => {
         <Card className={styles.actionBar}>
           <Row justify="space-between" align="middle">
             <Col>
-              <Popover
-                content={commentPopoverContent}
-                title="添加评论"
-                trigger="click"
-                open={!!selection}
-                onOpenChange={(visible) => !visible && setSelection(null)}
-              >
-                <Button icon={<MessageOutlined />} disabled={!selection}>
-                  {selection ? `评论选中: "${selection.substring(0, 15)}..."` : '请先划词评论'}
-                </Button>
-              </Popover>
+              <Space>
+                <Popover
+                  content={commentPopoverContent}
+                  title="添加评论"
+                  trigger="click"
+                  open={!!selection}
+                  onOpenChange={(visible) => !visible && setSelection(null)}
+                >
+                  <Button icon={<MessageOutlined />} disabled={!selection}>
+                    {selection ? `评论选中: "${selection.substring(0, 15)}..."` : '请先划词评论'}
+                  </Button>
+                </Popover>
+                {lastSaveTime && (
+                  <Tooltip title={`最后保存时间: ${lastSaveTime.toLocaleTimeString()}`}>
+                    <Tag color="green" icon={<SaveOutlined />}>
+                      已保存
+                    </Tag>
+                  </Tooltip>
+                )}
+              </Space>
             </Col>
             <Col>
               <Space>
-                <Tooltip title="内容很好">
-                  <Button 
-                    type={annotation.evaluation === 'good' ? 'primary' : 'default'} 
-                    shape="circle" 
-                    icon={<LikeOutlined />} 
-                    size="large" 
+                <Tooltip title={annotation.evaluation === 'good' ? '当前评价: 内容很好' : '评价为内容很好'}>
+                  <Button
+                    type={annotation.evaluation === 'good' ? 'primary' : 'default'}
+                    shape="circle"
+                    icon={<LikeOutlined />}
+                    size="large"
                     onClick={() => handleSetEvaluation('good')}
+                    className={annotation.evaluation === 'good' ? styles.evaluationActive : ''}
                   />
                 </Tooltip>
-                <Tooltip title="有待改进">
-                  <Button 
-                    danger 
+                <Tooltip title={annotation.evaluation === 'bad' ? '当前评价: 有待改进' : '评价为有待改进'}>
+                  <Button
+                    danger
                     type={annotation.evaluation === 'bad' ? 'primary' : 'default'}
-                    shape="circle" 
-                    icon={<DislikeOutlined />} 
-                    size="large" 
+                    shape="circle"
+                    icon={<DislikeOutlined />}
+                    size="large"
                     onClick={() => handleSetEvaluation('bad')}
+                    className={annotation.evaluation === 'bad' ? styles.evaluationActive : ''}
                   />
                 </Tooltip>
                 <Divider type="vertical" />
-                <Button onClick={() => postAnnotation(false)}>保存标注</Button>
-                <Button type="primary" onClick={() => postAnnotation(true)}>完成标注</Button>
+                <Button
+                  icon={<SaveOutlined />}
+                  loading={saving}
+                  onClick={() => postAnnotation(false)}
+                  disabled={submitting}
+                >
+                  {saving ? '保存中...' : '保存标注'}
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  loading={submitting}
+                  onClick={() => postAnnotation(true)}
+                  disabled={saving}
+                  danger={annotation.comments.length === 0}
+                >
+                  {submitting ? '提交中...' : '完成标注'}
+                </Button>
               </Space>
             </Col>
           </Row>
         </Card>
       </Affix>
     </div>
+    <SuccessModal />
+  </>
   );
 };
 

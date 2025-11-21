@@ -5,9 +5,38 @@
     padding: 16px;
     border-radius: 4px;
     background: #fafafa;
+    user-select: text;
+    line-height: 1.6;
 }
 
 .actionBar {
     margin-top: 16px;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+}
+
+.selectedText {
+    background: #e6f7ff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+    color: #1890ff;
+}
+
+.evaluationActive {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+/* 保存状态动画 */
+@keyframes savePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.saveSuccess {
+    animation: savePulse 0.6s ease-in-out;
 }
