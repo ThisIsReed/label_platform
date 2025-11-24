@@ -8,8 +8,10 @@ import api from '../services/api';
 interface DocumentType {
   id: number;
   title: string;
-  status: 'pending' | 'completed' | 'annotating';
-  word_count: number;
+  status: string;
+  annotation_status?: string; // "未标注", "进行中", "已标注"
+  word_count_source: number;
+  word_count_generated: number;
   created_at: string;
 }
 
@@ -35,16 +37,16 @@ const DocumentListPage: React.FC = () => {
     fetchDocuments();
   }, []);
 
-  const getStatusTag = (status: 'pending' | 'completed' | 'annotating') => {
-    switch (status) {
-      case 'pending':
+  const getStatusTag = (annotationStatus?: string) => {
+    switch (annotationStatus) {
+      case "未标注":
         return <Tag color="gold">待标注</Tag>;
-      case 'completed':
-        return <Tag color="green">已完成</Tag>;
-      case 'annotating':
+      case "已标注":
+        return <Tag color="green">已标注</Tag>;
+      case "进行中":
         return <Tag color="blue">标注中</Tag>;
       default:
-        return <Tag>未知</Tag>;
+        return <Tag color="default">未知</Tag>;
     }
   };
 
@@ -56,14 +58,14 @@ const DocumentListPage: React.FC = () => {
     },
     {
       title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => getStatusTag(status),
+      dataIndex: 'annotation_status',
+      key: 'annotation_status',
+      render: (annotationStatus) => getStatusTag(annotationStatus),
     },
     {
       title: '字数',
-      dataIndex: 'word_count',
-      key: 'word_count',
+      dataIndex: 'word_count_source',
+      key: 'word_count_source',
     },
     {
       title: '创建时间',
@@ -76,7 +78,7 @@ const DocumentListPage: React.FC = () => {
       render: (_, record) => (
         <Space size="middle">
           <Button type="primary" onClick={() => navigate(`/documents/${record.id}`)}>
-            {record.status === 'completed' ? '查看标注' : '开始标注'}
+            {record.annotation_status === '已标注' ? '查看标注' : '开始标注'}
           </Button>
         </Space>
       ),

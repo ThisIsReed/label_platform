@@ -2,6 +2,7 @@ import json
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from ..models.annotation import Annotation
+from ..models.document import Document
 from ..schemas.annotation import AnnotationCreate, AnnotationUpdate, CommentItem
 
 def create_or_update_annotation(
@@ -43,6 +44,9 @@ def create_or_update_annotation(
         db.commit()
         db.refresh(annotation)
 
+    # 保存标注后，总是更新文档状态
+    update_document_status(db, document_id)
+
     return annotation
 
 def get_annotation(db: Session, document_id: int, user_id: int):
@@ -64,3 +68,27 @@ def update_annotation_time(db: Session, annotation_id: int, additional_time: int
         db.commit()
         db.refresh(annotation)
     return annotation
+
+def update_document_status(db: Session, document_id: int):
+    """根据标注情况更新文档状态"""
+    # 获取文档的所有标注
+    total_annotations = db.query(Annotation).filter(Annotation.document_id == document_id).count()
+    completed_annotations = db.query(Annotation).filter(
+        Annotation.document_id == document_id,
+        Annotation.is_completed == True
+    ).count()
+
+    # 更新文档状态
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if document:
+        if total_annotations == 0:
+            document.status = "pending"
+        elif completed_annotations == total_annotations and total_annotations > 0:
+            document.status = "completed"
+        else:
+            document.status = "in_progress"
+
+        db.commit()
+        db.refresh(document)
+
+    return document
