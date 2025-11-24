@@ -1,5 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 from ..models.document import Document
 from ..models.annotation import Annotation
 from ..models.user import User
@@ -68,3 +69,142 @@ def get_all_user_stats(db: Session):
             **stats
         })
     return result
+
+def get_temporal_stats(db: Session, days: int = 30):
+    """获取时间维度的统计数据"""
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+
+    try:
+        # 每日标注量统计 - 修复兼容性问题
+        daily_annotations = db.query(
+            func.date(Annotation.created_at).label('date'),
+            func.count(Annotation.id).label('count'),
+            func.sum(func.cast(Annotation.evaluation, int)).label('positive_count')
+        ).filter(
+            Annotation.created_at >= start_date,
+            Annotation.created_at <= end_date
+        ).group_by(
+            func.date(Annotation.created_at)
+        ).order_by('date').all()
+
+        return [
+            {
+                "date": str(item.date),
+                "annotations": item.count,
+                "approval_rate": round((item.positive_count / item.count * 100), 2) if item.count > 0 else 0
+            }
+            for item in daily_annotations
+        ]
+    except Exception as e:
+        # 如果查询失败，返回空数据
+        return []
+
+def get_user_activity_distribution(db: Session):
+    """获取用户活跃度分布"""
+    try:
+        user_activity = db.query(
+            User.id,
+            User.username,
+            func.count(Annotation.id).label('annotation_count'),
+            func.sum(func.cast(Annotation.evaluation, int)).label('positive_count'),
+            func.sum(Annotation.time_spent).label('total_time'),
+            func.avg(Annotation.time_spent).label('avg_time')
+        ).join(
+            Annotation, User.id == Annotation.annotator_id
+        ).filter(
+            User.role == "expert"
+        ).group_by(
+            User.id, User.username
+        ).all()
+
+        return [
+            {
+                "user_id": item.id,
+                "username": item.username,
+                "annotation_count": item.annotation_count,
+                "approval_rate": round((item.positive_count / item.annotation_count * 100), 2) if item.annotation_count > 0 else 0,
+                "total_time_minutes": round(item.total_time / 60, 2) if item.total_time else 0,
+                "avg_time_minutes": round(item.avg_time / 60, 2) if item.avg_time else 0
+            }
+            for item in user_activity
+        ]
+    except Exception as e:
+        # 如果查询失败，返回空数据
+        return []
+
+def get_document_completion_stats(db: Session):
+    """获取文档完成状态分布"""
+    # 文档状态统计
+    total_docs = db.query(Document).count()
+    completed_docs = db.query(Document.id).join(Annotation).filter(
+        Annotation.is_completed == True
+    ).distinct().count()
+
+    # 每个文档的标注人数
+    doc_annotation_counts = db.query(
+        Document.id,
+        func.count(Annotation.id).label('annotation_count'),
+        func.count(func.distinct(Annotation.annotator_id)).label('annotator_count')
+    ).outerjoin(
+        Annotation
+    ).group_by(Document.id).all()
+
+    return {
+        "total_documents": total_docs,
+        "completed_documents": completed_docs,
+        "completion_rate": round((completed_docs / total_docs * 100), 2) if total_docs > 0 else 0,
+        "documents_per_annotator": [
+            {
+                "document_id": item.id,
+                "annotations_count": item.annotation_count,
+                "annotators_count": item.annotator_count
+            }
+            for item in doc_annotation_counts
+        ]
+    }
+
+def get_approval_rate_analysis(db: Session):
+    """获取好评率详细分析"""
+    # 总体好评率
+    total_evaluations = db.query(Annotation).filter(Annotation.evaluation.isnot(None)).count()
+    positive_evaluations = db.query(Annotation).filter(Annotation.evaluation == True).count()
+    overall_rate = round((positive_evaluations / total_evaluations * 100), 2) if total_evaluations > 0 else 0
+
+    # 按用户分析好评率 - 修复兼容性问题
+    try:
+        user_approval_rates = db.query(
+            User.id,
+            User.username,
+            func.sum(func.cast(Annotation.evaluation, int)).label('positive_count'),
+            func.count(Annotation.id).label('count')
+        ).join(
+            Annotation, User.id == Annotation.annotator_id
+        ).filter(
+            User.role == "expert"
+        ).group_by(
+            User.id, User.username
+        ).all()
+
+        return {
+            "overall_approval_rate": overall_rate,
+            "total_evaluations": total_evaluations,
+            "positive_evaluations": positive_evaluations,
+            "user_approval_rates": [
+                {
+                    "user_id": item.id,
+                    "username": item.username,
+                    "approval_rate": round((item.positive_count / item.count * 100), 2) if item.count > 0 else 0,
+                    "evaluation_count": item.count
+                }
+                for item in user_approval_rates
+            ]
+        }
+    except Exception as e:
+        # 如果查询失败，返回基本统计信息
+        return {
+            "overall_approval_rate": overall_rate,
+            "total_evaluations": total_evaluations,
+            "positive_evaluations": positive_evaluations,
+            "user_approval_rates": []
+        }
