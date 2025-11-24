@@ -265,36 +265,55 @@ const AnnotationPage: React.FC = () => {
     <>
       <div style={{ padding: '0 16px' }}>
         <Title level={3}>{document.title || '无标题文档'}</Title>
-        <Row gutter={16}>
-          <Col span={11}>
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col span={12}>
             <Card title="原始素材">
               <Paragraph className={styles.contentBox} onMouseUp={handleSelection}>
                 {document.source_content}
               </Paragraph>
             </Card>
           </Col>
-          <Col span={11}>
+          <Col span={12}>
             <Card title="AI 生成内容">
               <Paragraph className={styles.contentBox} onMouseUp={handleSelection}>
                 {document.generated_content}
               </Paragraph>
             </Card>
           </Col>
-           <Col span={2}>
-            <Card title="评论列表" size="small">
-                <List
-                  dataSource={annotation.comments || []}
-                  renderItem={item => (
-                    <List.Item>
-                      <Tooltip title={item.comment}>
-                        <Tag color="blue">{item.selected_text?.substring(0, 10) || '...'}...</Tag>
-                      </Tooltip>
-                    </List.Item>
-                  )}
-                />
+        </Row>
+
+        <Row>
+          <Col span={24}>
+            <Card title={`评论列表 (${annotation.comments?.length || 0} 条评论)`} className={styles.commentsCard}>
+              <div className={styles.commentsContainer}>
+                {annotation.comments?.length > 0 ? (
+                  <List
+                    dataSource={annotation.comments}
+                    renderItem={(item, index) => (
+                      <List.Item className={styles.commentItem}>
+                        <div className={styles.commentContent}>
+                          <div className={styles.selectedTextSection}>
+                            <Tag color="blue" className={styles.textTag}>
+                              引用: "{item.selected_text?.substring(0, 30)}..."
+                            </Tag>
+                          </div>
+                          <div className={styles.commentText}>
+                            {item.comment}
+                          </div>
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                ) : (
+                  <div className={styles.noComments}>
+                    暂无评论，请在上方内容中划词并添加评论
+                  </div>
+                )}
+              </div>
             </Card>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
+      </div>
 
       <Affix offsetBottom={20}>
         <Card className={styles.actionBar}>
@@ -368,9 +387,8 @@ const AnnotationPage: React.FC = () => {
           </Row>
         </Card>
       </Affix>
-    </div>
-    <SuccessModal />
-  </>
+      <SuccessModal />
+    </>
   );
 };
 
