@@ -19,5 +19,9 @@ class Document(Base):
     # 关联标注
     annotations = relationship("Annotation", back_populates="document")
 
+    # 关联分配的专家
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_user = relationship("User", back_populates="assigned_documents")
+
     def __repr__(self):
         return f"<Document(id={self.id}, title='{self.title[:50]}...')>"

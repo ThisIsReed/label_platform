@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
 
@@ -13,6 +14,9 @@ class User(Base):
     role = Column(String(20), default="expert")  # admin, expert
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # 关联分配的文档
+    assigned_documents = relationship("Document", back_populates="assigned_user")
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"
