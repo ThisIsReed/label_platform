@@ -121,3 +121,4 @@ Run `python backend/init_data.py` to create:
 - Database file: `backend/database.db` (SQLite)
 - Chinese language support throughout the application
 - The platform is designed for expert evaluation of AI-generated local chronicle content
+- 假定用户已经在上述地址自动了测试服务，如果测试中发现服务未启动，你需要要求用户启动
