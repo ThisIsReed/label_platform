@@ -206,7 +206,7 @@ const DocumentListPage: React.FC = () => {
             size="small"
             onClick={() => navigate(`/documents/${record.id}`)}
           >
-            {record.annotation_status === '已标注' ? '查看标注' : '开始标注'}
+            {user.role === 'admin' ? '查看标注' : (record.annotation_status === '已标注' ? '查看标注' : '开始标注')}
           </Button>
         </Space>
       ),

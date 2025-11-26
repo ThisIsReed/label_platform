@@ -27,7 +27,7 @@ class Annotation(Base):
 
     # 关联关系
     document = relationship("Document", back_populates="annotations")
-    annotator = relationship("User")
+    annotator = relationship("User", back_populates="annotations")
 
     def __repr__(self):
         return f"<Annotation(id={self.id}, document_id={self.document_id}, evaluation={'好' if self.evaluation else '不好'})>"

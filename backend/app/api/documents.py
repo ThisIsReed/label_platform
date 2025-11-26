@@ -53,8 +53,13 @@ async def read_document(
     # 根据用户角色获取不同的标注数据
     if current_user.role == "admin":
         # 管理员：获取文档和所有标注信息
-        from ..services.annotation import get_document_annotations
-        annotations = get_document_annotations(db, document_id)
+        from ..models.annotation import Annotation
+        from sqlalchemy.orm import joinedload
+
+        # 使用 joinedload 来确保关联的用户数据被正确加载
+        annotations = db.query(Annotation).options(
+            joinedload(Annotation.annotator)
+        ).filter(Annotation.document_id == document_id).all()
 
         response_data = {
             "id": document.id,

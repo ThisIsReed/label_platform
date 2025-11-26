@@ -18,5 +18,8 @@ class User(Base):
     # 关联分配的文档
     assigned_documents = relationship("Document", back_populates="assigned_user")
 
+    # 关联用户的标注
+    annotations = relationship("Annotation", back_populates="annotator")
+
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"

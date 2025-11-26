@@ -82,6 +82,7 @@ const AnnotationPage: React.FC = () => {
       // 根据用户角色处理标注数据
       if (currentUser.role === 'admin' && docResponse.data.annotations) {
         // 管理员：显示所有标注数据（只读）
+        console.log('管理员查看标注，标注数据:', docResponse.data.annotations);
         // 不需要额外获取标注数据，因为文档API已返回所有标注
       } else {
         // 专家：获取自己的标注数据
@@ -348,62 +349,65 @@ const AnnotationPage: React.FC = () => {
                 {document.annotations.length > 0 ? (
                   <Tabs
                     type="card"
-                    items={document.annotations.map((ann, index) => ({
-                      key: ann.annotation_id.toString(),
-                      label: (
-                        <span>
-                          <Avatar size="small" icon={<UserOutlined />} />
-                          {ann.annotator_name}
-                          {ann.is_completed ? (
-                            <Tag color="green" size="small" style={{ marginLeft: 8 }}>已完成</Tag>
-                          ) : (
-                            <Tag color="blue" size="small" style={{ marginLeft: 8 }}>进行中</Tag>
-                          )}
-                        </span>
-                      ),
-                      children: (
-                        <div>
-                          <div style={{ marginBottom: 16 }}>
-                            <Title level={5}>
-                              整体评价: {ann.evaluation ? '内容很好 👍' : '有待改进 📝'}
-                            </Title>
-                            <div style={{ color: '#666', fontSize: '12px' }}>
-                              标注时间: {new Date(ann.created_at).toLocaleString()}
-                              {ann.time_spent > 0 && ` | 用时: ${Math.floor(ann.time_spent / 60)}分钟`}
+                    items={document.annotations.map((ann, index) => {
+                      console.log(`处理专家 ${ann.annotator_name} 的标注数据:`, ann);
+                      return {
+                        key: ann.annotation_id.toString(),
+                        label: (
+                          <span>
+                            <Avatar size="small" icon={<UserOutlined />} />
+                            {ann.annotator_name}
+                            {ann.is_completed ? (
+                              <Tag color="green" size="small" style={{ marginLeft: 8 }}>已完成</Tag>
+                            ) : (
+                              <Tag color="blue" size="small" style={{ marginLeft: 8 }}>进行中</Tag>
+                            )}
+                          </span>
+                        ),
+                        children: (
+                          <div>
+                            <div style={{ marginBottom: 16 }}>
+                              <Title level={5}>
+                                整体评价: {ann.evaluation ? '内容很好 👍' : '有待改进 📝'}
+                              </Title>
+                              <div style={{ color: '#666', fontSize: '12px' }}>
+                                标注时间: {new Date(ann.created_at).toLocaleString()}
+                                {ann.time_spent > 0 && ` | 用时: ${Math.floor(ann.time_spent / 60)}分钟`}
+                              </div>
                             </div>
+
+                            <Title level={5}>
+                              评论列表 ({ann.comments.length} 条评论)
+                            </Title>
+
+                            {ann.comments.length > 0 ? (
+                              <List
+                                dataSource={ann.comments}
+                                renderItem={(comment: any, commentIndex: number) => (
+                                  <List.Item className={styles.commentItem}>
+                                    <div className={styles.commentContent}>
+                                      <div className={styles.selectedTextSection}>
+                                        <Tag color="blue" className={styles.textTag}>
+                                          引用: "{comment.selection || comment.text?.substring(0, 30)}..."
+                                        </Tag>
+                                      </div>
+                                      <div className={styles.commentText}>
+                                        {comment.text}
+                                      </div>
+                                    </div>
+                                  </List.Item>
+                                )}
+                              />
+                            ) : (
+                              <Empty
+                                description="该专家暂无评论"
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                              />
+                            )}
                           </div>
-
-                          <Title level={5}>
-                            评论列表 ({ann.comments.length} 条评论)
-                          </Title>
-
-                          {ann.comments.length > 0 ? (
-                            <List
-                              dataSource={ann.comments}
-                              renderItem={(comment: any, commentIndex: number) => (
-                                <List.Item className={styles.commentItem}>
-                                  <div className={styles.commentContent}>
-                                    <div className={styles.selectedTextSection}>
-                                      <Tag color="blue" className={styles.textTag}>
-                                        引用: "{comment.selection || comment.text?.substring(0, 30)}..."
-                                      </Tag>
-                                    </div>
-                                    <div className={styles.commentText}>
-                                      {comment.text}
-                                    </div>
-                                  </div>
-                                </List.Item>
-                              )}
-                            />
-                          ) : (
-                            <Empty
-                              description="该专家暂无评论"
-                              image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            />
-                          )}
-                        </div>
-                      )
-                    }))}
+                        )
+                      };
+                    })}
                   />
                 ) : (
                   <Empty
