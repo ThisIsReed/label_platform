@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { message } from 'antd';
+import { AssignDocumentRequest } from '../types';
 
 // 创建 Axios 实例
 const api = axios.create({
@@ -60,5 +61,38 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// 扩展API服务方法
+export const assignmentApi = {
+  // 分配文档给用户（管理员使用）
+  assignDocument: async (data: AssignDocumentRequest) => {
+    const response = await api.post('/documents/assign', data);
+    return response.data;
+  },
+
+  // 认领文档（专家使用）
+  claimDocument: async (documentId: number) => {
+    const response = await api.post(`/documents/claim/${documentId}`);
+    return response.data;
+  },
+
+  // 获取分配给我的文档（专家使用）
+  getMyAssignedDocuments: async () => {
+    const response = await api.get('/documents/my/assigned');
+    return response.data;
+  },
+
+  // 获取可认领的文档（专家使用）
+  getAvailableDocuments: async () => {
+    const response = await api.get('/documents/available');
+    return response.data;
+  },
+
+  // 获取带分配状态的文档统计
+  getDocumentStatsWithAssignment: async () => {
+    const response = await api.get('/stats/with-assignment');
+    return response.data;
+  }
+};
 
 export default api;

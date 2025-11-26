@@ -10,6 +10,7 @@ import { Avatar, Breadcrumb, Button, Dropdown, Layout, Menu, theme, Space } from
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { User } from '../types';
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -38,7 +39,7 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<{ username: string; full_name: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const {
     token: { colorBgContainer, borderRadiusLG },
@@ -123,7 +124,23 @@ const AppLayout: React.FC = () => {
                 <Avatar icon={<UserOutlined />} src={user?.avatar} />
               )}
               <span style={{ marginLeft: 8 }}>
-                {loading ? '加载中...' : (user?.full_name || user?.username || '未知用户')}
+                {loading ? '加载中...' : (
+                  <>
+                    <span>{user?.full_name || user?.username || '未知用户'}</span>
+                    {user?.role && (
+                      <span style={{
+                        marginLeft: 8,
+                        fontSize: '12px',
+                        color: '#666',
+                        backgroundColor: user.role === 'admin' ? '#f0f5ff' : '#f6ffed',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        {user.role === 'admin' ? '管理员' : '专家'}
+                      </span>
+                    )}
+                  </>
+                )}
               </span>
             </div>
           </Dropdown>
