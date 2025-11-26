@@ -1,4 +1,4 @@
-import { DislikeOutlined, LikeOutlined, MessageOutlined, SendOutlined, SaveOutlined, CheckOutlined, UserOutlined } from '@ant-design/icons';
+import { DislikeOutlined, LikeOutlined, MessageOutlined, SendOutlined, SaveOutlined, CheckOutlined, UserOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Button, Card, Col, message, Row, Tooltip, Typography, Space, Divider, Affix, Popover, Input, Spin, List, Tag, Modal, Progress, Tabs, Empty, Avatar } from 'antd';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -55,6 +55,7 @@ const AnnotationPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
+  const [deleting, setDeleting] = useState(false);
   
   const fetchUser = useCallback(async () => {
     try {
@@ -221,6 +222,96 @@ const AnnotationPage: React.FC = () => {
     setShowSuccessModal(false);
     // 可以跳转到下一个待标注的文档
     navigate('/documents');
+  };
+
+  // 删除单个评论
+  const handleDeleteComment = (commentIndex: number) => {
+    const comment = annotation.comments[commentIndex];
+    Modal.confirm({
+      title: '确认删除评论',
+      content: (
+        <div>
+          <p>确定要删除这条评论吗？</p>
+          <div style={{background: '#f5f5f5', padding: '8px', borderRadius: '4px', marginTop: '8px'}}>
+            <div><strong>引用内容：</strong>"{comment.selected_text}"</div>
+            <div><strong>评论内容：</strong>{comment.comment}</div>
+          </div>
+        </div>
+      ),
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => confirmDeleteComment(commentIndex)
+    });
+  };
+
+  // 删除整个标注
+  const handleDeleteAnnotation = () => {
+    Modal.confirm({
+      title: '确认删除标注',
+      content: (
+        <div>
+          <p>确定要删除您的整个标注吗？这将删除：</p>
+          <ul>
+            <li>您的整体评价</li>
+            <li>所有 {annotation.comments.length} 条评论</li>
+            <li>标注用时记录</li>
+          </ul>
+          <p style={{color: '#ff4d4f', fontWeight: 'bold'}}>
+            此操作无法撤销，请谨慎操作！
+          </p>
+        </div>
+      ),
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: confirmDeleteAnnotation
+    });
+  };
+
+  // 确认删除单个评论
+  const confirmDeleteComment = async (commentIndex: number) => {
+    try {
+      setDeleting(true);
+
+      const response = await api.delete(`/annotations/${id}/comments/${commentIndex}`);
+
+      // 更新本地状态
+      const newComments = annotation.comments.filter((_, index) => index !== commentIndex);
+      setAnnotation(prev => ({ ...prev, comments: newComments }));
+
+      message.success('评论已删除');
+    } catch (error: any) {
+      console.error('删除评论失败:', error);
+      message.error(error.response?.data?.detail || '删除失败，请重试');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // 确认删除整个标注
+  const confirmDeleteAnnotation = async () => {
+    try {
+      setDeleting(true);
+
+      await api.delete(`/annotations/${id}`);
+
+      // 重置本地状态
+      setAnnotation({ comments: [] });
+
+      message.success('整个标注已删除');
+
+      // 1.5秒后返回文档列表
+      setTimeout(() => {
+        navigate('/documents');
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('删除标注失败:', error);
+      message.error(error.response?.data?.detail || '删除失败，请重试');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // 成功提交模态框
@@ -428,7 +519,22 @@ const AnnotationPage: React.FC = () => {
                     <List
                       dataSource={annotation.comments}
                       renderItem={(item, index) => (
-                        <List.Item className={styles.commentItem}>
+                        <List.Item
+                          className={styles.commentItem}
+                          actions={user?.role === 'expert' ? [
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={() => handleDeleteComment(index)}
+                              size="small"
+                              title="删除这条评论"
+                              disabled={deleting}
+                            >
+                              删除
+                            </Button>
+                          ] : undefined}
+                        >
                           <div className={styles.commentContent}>
                             <div className={styles.selectedTextSection}>
                               <Tag color="blue" className={styles.textTag}>
@@ -518,11 +624,22 @@ const AnnotationPage: React.FC = () => {
                     icon={<CheckOutlined />}
                     loading={submitting}
                     onClick={() => postAnnotation(true)}
-                  disabled={saving}
-                  danger={annotation.comments.length === 0}
+                    disabled={saving || deleting}
+                    danger={annotation.comments.length === 0}
                 >
                   {submitting ? '提交中...' : '完成标注'}
                 </Button>
+                  {user?.role === 'expert' && annotation.comments.length > 0 && (
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={handleDeleteAnnotation}
+                      disabled={saving || submitting || deleting}
+                      loading={deleting}
+                    >
+                      删除标注
+                    </Button>
+                  )}
               </Space>
             </Col>
           </Row>

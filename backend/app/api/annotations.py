@@ -5,7 +5,13 @@ from pydantic import BaseModel
 from ..database import get_db
 from ..schemas.annotation import Annotation, AnnotationCreate, AnnotationUpdate, CommentItem
 from ..services.auth import get_current_user
-from ..services.annotation import create_or_update_annotation, get_annotation, get_document_annotations
+from ..services.annotation import (
+    create_or_update_annotation,
+    get_annotation,
+    get_document_annotations,
+    delete_comment_from_annotation,
+    delete_user_annotation
+)
 from ..models.user import User
 
 # 标注保存请求模型
@@ -94,3 +100,64 @@ async def get_document_all_annotations(
         })
 
     return result
+
+# 删除单个评论接口
+@router.delete("/{document_id}/comments/{comment_index}")
+async def delete_comment(
+    document_id: int,
+    comment_index: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 权限验证：只有专家可以删除标注
+    if current_user.role != "expert":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有专家可以删除标注"
+        )
+
+    # 调用服务层删除评论
+    result = delete_comment_from_annotation(db, document_id, current_user.id, comment_index)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="标注或评论不存在"
+        )
+
+    # 解析更新后的评论数据返回给前端
+    import json
+    comments = json.loads(result.comments) if result.comments else []
+
+    return {
+        "message": "评论已删除",
+        "annotation": {
+            "evaluation": result.evaluation,
+            "comments": comments,
+            "time_spent": result.time_spent,
+            "is_completed": result.is_completed
+        }
+    }
+
+# 删除整个标注接口
+@router.delete("/{document_id}")
+async def delete_annotation(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 权限验证：只有专家可以删除标注
+    if current_user.role != "expert":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有专家可以删除标注"
+        )
+
+    # 调用服务层删除整个标注
+    success = delete_user_annotation(db, document_id, current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="标注不存在"
+        )
+
+    return {"message": "标注已删除"}

@@ -69,6 +69,54 @@ def update_annotation_time(db: Session, annotation_id: int, additional_time: int
         db.refresh(annotation)
     return annotation
 
+def delete_comment_from_annotation(
+    db: Session,
+    document_id: int,
+    user_id: int,
+    comment_index: int
+):
+    """从标注中删除指定索引的评论"""
+    annotation = get_annotation(db, document_id, user_id)
+    if not annotation:
+        return None
+
+    # 解析JSON评论数组
+    comments = json.loads(annotation.comments) if annotation.comments else []
+
+    # 检查索引有效性
+    if 0 <= comment_index < len(comments):
+        comments.pop(comment_index)
+        annotation.comments = json.dumps(comments)
+
+        # 如果没有评论了，更新完成状态
+        if len(comments) == 0:
+            annotation.is_completed = False
+
+        db.commit()
+        db.refresh(annotation)
+
+        # 更新文档状态
+        update_document_status(db, document_id)
+
+    return annotation
+
+def delete_user_annotation(db: Session, document_id: int, user_id: int):
+    """删除用户的整个标注记录"""
+    annotation = db.query(Annotation).filter(
+        Annotation.document_id == document_id,
+        Annotation.annotator_id == user_id
+    ).first()
+
+    if annotation:
+        db.delete(annotation)
+        db.commit()
+
+        # 更新文档状态
+        update_document_status(db, document_id)
+        return True
+
+    return False
+
 def update_document_status(db: Session, document_id: int):
     """根据标注情况更新文档状态"""
     # 获取文档的所有标注
