@@ -50,42 +50,89 @@ async def read_document(
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
 
-    result = get_document_with_annotation(db, document_id, current_user.id)
+    # 根据用户角色获取不同的标注数据
+    if current_user.role == "admin":
+        # 管理员：获取文档和所有标注信息
+        from ..services.annotation import get_document_annotations
+        annotations = get_document_annotations(db, document_id)
 
-    # 返回扁平化的文档数据，包含标注信息
-    document = result["document"]
-    annotation = result["annotation"]
+        response_data = {
+            "id": document.id,
+            "title": document.title,
+            "status": document.status,
+            "word_count_source": document.word_count_source,
+            "word_count_generated": document.word_count_generated,
+            "created_at": document.created_at,
+            "updated_at": document.updated_at,
+            "source_content": document.source_content,
+            "generated_content": document.generated_content,
+            "annotations": []
+        }
 
-    response_data = {
-        "id": document.id,
-        "title": document.title,
-        "status": document.status,
-        "word_count_source": document.word_count_source,
-        "word_count_generated": document.word_count_generated,
-        "created_at": document.created_at,
-        "updated_at": document.updated_at,
-        "source_content": document.source_content,
-        "generated_content": document.generated_content
-    }
-
-    # 如果有标注，添加标注数据
-    if annotation:
-        # 解析JSON字符串形式的评论
+        # 添加所有标注数据
         import json
-        try:
-            comments_data = json.loads(annotation.comments) if annotation.comments else []
-        except (json.JSONDecodeError, TypeError):
-            comments_data = []
+        for annotation in annotations:
+            try:
+                comments_data = json.loads(annotation.comments) if annotation.comments else []
+            except (json.JSONDecodeError, TypeError):
+                comments_data = []
 
-        response_data.update({
-            "annotation_status": "已标注" if annotation.is_completed else "进行中",
-            "evaluation": annotation.evaluation,
-            "comments": comments_data,
-            "time_spent": annotation.time_spent,
-            "annotated_at": annotation.created_at
-        })
+            annotation_data = {
+                "annotation_id": annotation.id,
+                "annotator_id": annotation.annotator_id,
+                "annotator_name": annotation.annotator.full_name or annotation.annotator.username,
+                "evaluation": annotation.evaluation,
+                "comments": comments_data,
+                "time_spent": annotation.time_spent,
+                "is_completed": annotation.is_completed,
+                "created_at": annotation.created_at
+            }
+            response_data["annotations"].append(annotation_data)
+
+        # 设置总体标注状态
+        if len(annotations) == 0:
+            response_data["annotation_status"] = "未标注"
+        elif all(ann.is_completed for ann in annotations):
+            response_data["annotation_status"] = "已标注"
+        else:
+            response_data["annotation_status"] = "进行中"
+
     else:
-        response_data["annotation_status"] = "未标注"
+        # 专家：获取自己的标注信息
+        result = get_document_with_annotation(db, document_id, current_user.id)
+        document = result["document"]
+        annotation = result["annotation"]
+
+        response_data = {
+            "id": document.id,
+            "title": document.title,
+            "status": document.status,
+            "word_count_source": document.word_count_source,
+            "word_count_generated": document.word_count_generated,
+            "created_at": document.created_at,
+            "updated_at": document.updated_at,
+            "source_content": document.source_content,
+            "generated_content": document.generated_content
+        }
+
+        # 如果有标注，添加标注数据
+        if annotation:
+            # 解析JSON字符串形式的评论
+            import json
+            try:
+                comments_data = json.loads(annotation.comments) if annotation.comments else []
+            except (json.JSONDecodeError, TypeError):
+                comments_data = []
+
+            response_data.update({
+                "annotation_status": "已标注" if annotation.is_completed else "进行中",
+                "evaluation": annotation.evaluation,
+                "comments": comments_data,
+                "time_spent": annotation.time_spent,
+                "annotated_at": annotation.created_at
+            })
+        else:
+            response_data["annotation_status"] = "未标注"
 
     return response_data
 

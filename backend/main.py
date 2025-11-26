@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import Base, engine
-from app.api import auth, documents, annotations, stats
+from app.api import auth, documents, annotations, stats, users
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -31,6 +31,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(documents.router, prefix="/api/documents", tags=["文档"])
 app.include_router(annotations.router, prefix="/api/annotations", tags=["标注"])
 app.include_router(stats.router, prefix="/api/stats", tags=["统计"])
+app.include_router(users.router, prefix="/api/users", tags=["用户"])
 
 @app.get("/api")
 async def root():
