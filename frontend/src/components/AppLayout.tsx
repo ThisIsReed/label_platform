@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { User } from '../types';
+import './AppLayout.css';
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -105,8 +106,12 @@ const AppLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Layout.Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', textAlign: 'center', color: 'white', lineHeight: '32px' }}>
-          LOGO
+        <div className="app-logo">
+          <div className="logo-icon">📚</div>
+          <div className="logo-text">
+            <div className="logo-main">地方志标注平台</div>
+            <div className="logo-sub">Chronicle Annotator</div>
+          </div>
         </div>
         <Menu theme="dark" defaultSelectedKeys={[location.pathname]} mode="inline" items={items} onClick={handleSidebarMenuClick} />
       </Layout.Sider>
