@@ -208,3 +208,4 @@ backend/instance/
 frontend/dist/
 frontend/.vite/
 frontend/node_modules/
+script/*
