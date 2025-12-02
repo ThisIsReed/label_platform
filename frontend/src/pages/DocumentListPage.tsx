@@ -28,7 +28,7 @@ const DocumentListPage: React.FC = () => {
   }, []);
 
   // 获取文档列表
-  const fetchDocuments = useCallback(async (currentUser: User, page: number = 1, pageSize: number = 200) => {
+  const fetchDocuments = useCallback(async (page: number = 1, pageSize: number = 200) => {
     try {
       setLoading(true);
       const response = await api.get('/documents/', {
@@ -63,7 +63,7 @@ const DocumentListPage: React.FC = () => {
         await fetchUsers();
       }
       if (currentUser) {
-        await fetchDocuments(currentUser, 1, 2000); // 增加页面大小以显示更多文档
+        await fetchDocuments(1, 2000); // 增加页面大小以显示更多文档
       }
     };
 
@@ -81,7 +81,7 @@ const DocumentListPage: React.FC = () => {
 
       // 刷新文档列表
       if (user) {
-        await fetchDocuments(user, 1, 2000);
+        await fetchDocuments(1, 2000);
       }
     } catch (error) {
       console.error('Failed to assign document:', error);
@@ -96,7 +96,7 @@ const DocumentListPage: React.FC = () => {
 
       // 刷新文档列表
       if (user) {
-        await fetchDocuments(user, 1, 2000);
+        await fetchDocuments(1, 2000);
       }
     } catch (error) {
       console.error('Failed to claim document:', error);
@@ -166,7 +166,7 @@ const DocumentListPage: React.FC = () => {
         {
           title: '分配状态',
           key: 'assignment_status',
-          render: (_, record) => getAssignmentTag(record.assigned_to, record.assigned_to_username, user),
+          render: (_, record) => getAssignmentTag(record.assigned_to ?? null, record.assigned_to_username ?? null, user),
         },
         {
           title: '分配操作',
@@ -176,7 +176,7 @@ const DocumentListPage: React.FC = () => {
             <Select
               style={{ width: '100%' }}
               placeholder="选择专家"
-              value={record.assigned_to}
+              value={record.assigned_to ?? null}
               onChange={(value) => handleAssignDocument(record.id, value)}
               allowClear
             >
