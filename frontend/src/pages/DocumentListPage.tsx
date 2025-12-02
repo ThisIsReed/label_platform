@@ -28,10 +28,15 @@ const DocumentListPage: React.FC = () => {
   }, []);
 
   // 获取文档列表
-  const fetchDocuments = useCallback(async (currentUser: User) => {
+  const fetchDocuments = useCallback(async (currentUser: User, page: number = 1, pageSize: number = 200) => {
     try {
       setLoading(true);
-      const response = await api.get('/documents/');
+      const response = await api.get('/documents/', {
+        params: {
+          skip: (page - 1) * pageSize,
+          limit: pageSize
+        }
+      });
       setDocuments(response.data);
     } catch (error) {
       console.error('Failed to fetch documents:', error);
@@ -58,7 +63,7 @@ const DocumentListPage: React.FC = () => {
         await fetchUsers();
       }
       if (currentUser) {
-        await fetchDocuments(currentUser);
+        await fetchDocuments(currentUser, 1, 2000); // 增加页面大小以显示更多文档
       }
     };
 
@@ -76,7 +81,7 @@ const DocumentListPage: React.FC = () => {
 
       // 刷新文档列表
       if (user) {
-        await fetchDocuments(user);
+        await fetchDocuments(user, 1, 2000);
       }
     } catch (error) {
       console.error('Failed to assign document:', error);
@@ -91,7 +96,7 @@ const DocumentListPage: React.FC = () => {
 
       // 刷新文档列表
       if (user) {
-        await fetchDocuments(user);
+        await fetchDocuments(user, 1, 2000);
       }
     } catch (error) {
       console.error('Failed to claim document:', error);

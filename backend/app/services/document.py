@@ -22,7 +22,7 @@ def create_document(db: Session, document: DocumentCreate):
     db.refresh(db_document)
     return db_document
 
-def get_documents(db: Session, skip: int = 0, limit: int = 100, user_id: int = None, user_role: str = None):
+def get_documents(db: Session, skip: int = 0, limit: int = 2000, user_id: int = None, user_role: str = None):
     """
     根据用户权限获取文档列表
     - 管理员：可以看到所有文档
@@ -101,7 +101,7 @@ def assign_document(db: Session, document_id: int, assigned_to: int):
     db.refresh(document)
     return document
 
-def get_user_documents(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+def get_user_documents(db: Session, user_id: int, skip: int = 0, limit: int = 1000):
     """获取分配给指定用户的所有文档"""
     documents = db.query(Document).filter(Document.assigned_to == user_id).offset(skip).limit(limit).all()
 

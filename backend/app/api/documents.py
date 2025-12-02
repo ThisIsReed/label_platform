@@ -31,7 +31,7 @@ async def create_new_document(
 @router.get("/", response_model=List[DocumentList])
 async def read_documents(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -191,7 +191,7 @@ async def assign_document_to_user(
 @router.get("/my/assigned", response_model=List[DocumentList])
 async def get_my_assigned_documents(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 1000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -207,7 +207,7 @@ async def get_my_assigned_documents(
 @router.get("/available")
 async def get_available_documents(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 1000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
